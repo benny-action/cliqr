@@ -23,7 +23,7 @@ impl QRBody {
         self.contents.push_str(input_text);
     }
     fn show_qr(&mut self) {
-        let blocks = to_binary(&self.contents);
+        let mut blocks = to_binary(&self.contents);
         println!("{:#?}", blocks);
     }
     fn clear_screen(&mut self) {
@@ -40,13 +40,11 @@ impl QRBody {
 
 fn main() {
     let mut qr_translate_app = QRBody::new("");
-    loop {
-        qr_translate_app.clear_screen();
-        println!("CLIQR: text to QR in command line");
-        let new_input = get_string_input("Enter text to become QR:");
-        qr_translate_app.add_text(&new_input);
-        qr_translate_app.show_qr();
-    }
+    qr_translate_app.clear_screen();
+    println!("CLIQR: text to QR in command line");
+    let new_input = get_string_input("Enter text to become QR: ");
+    qr_translate_app.add_text(&new_input);
+    qr_translate_app.show_qr();
 }
 
 fn get_string_input(prompt: &str) -> String {
@@ -61,12 +59,11 @@ fn get_string_input(prompt: &str) -> String {
 }
 
 fn to_binary(string_to_change: &str) {
-    // TODO: change line below to accept the input
     let string_to_change = string_to_change;
     let mut string_in_binary = "".to_string();
 
     for character in string_to_change.bytes() {
-        string_in_binary += &format!("0{:b} ", character);
+        string_in_binary += &format!("0{:b}", character);
     }
-    println!("\"{}\" in binary is {}", string_to_change, string_in_binary);
+    println!("{}\n{}", string_to_change, string_in_binary);
 }
