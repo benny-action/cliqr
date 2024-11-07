@@ -22,21 +22,18 @@ impl QRBody {
     fn add_text(&mut self, input_text: &str) {
         self.contents.push_str(input_text);
     }
-    fn show_qr(&mut self) {
-        let mut blocks = to_binary(&self.contents);
-        println!("{:#?}", blocks);
-    }
+    //fn show_qr(&mut self) {
+    //    let blocks = ansi_translate(to_binary(&self.contents));
+    //    return blocks;
+    //}
     fn clear_screen(&mut self) {
         print!("{esc}[2J{esc}[1;1H", esc = 27 as char);
     }
 }
 
-//add capacity for showing on different sized screens - max width, division by
-// take contents here,
-// use to_binary on it, store,
-// convert to ansi halfblock chars,
-// wrap in qr block stuff,
-// display depended on sizing.
+//TODO: add: mode encoding, error correction level,
+//qr code version used, character count indicator,
+//padding
 
 fn main() {
     let mut qr_translate_app = QRBody::new("");
@@ -44,7 +41,12 @@ fn main() {
     println!("CLIQR: text to QR in command line");
     let new_input = get_string_input("Enter text to become QR: ");
     qr_translate_app.add_text(&new_input);
-    qr_translate_app.show_qr();
+    let binary_info = to_binary(&new_input);
+    let qr_info = ansi_translate(&binary_info);
+    //TODO: Refactor to reduce mem footprint
+    println!("{}", new_input);
+    println!("{}", binary_info);
+    println!("{}", qr_info);
 }
 
 fn get_string_input(prompt: &str) -> String {
@@ -58,12 +60,22 @@ fn get_string_input(prompt: &str) -> String {
     input.trim().to_string()
 }
 
-fn to_binary(string_to_change: &str) {
+fn to_binary(string_to_change: &str) -> String {
     let string_to_change = string_to_change;
     let mut string_in_binary = "".to_string();
 
     for character in string_to_change.bytes() {
         string_in_binary += &format!("0{:b}", character);
     }
-    println!("{}\n{}", string_to_change, string_in_binary);
+    return string_in_binary;
+}
+fn ansi_translate(input: &str) -> String {
+    input
+        .chars()
+        .map(|c| match c {
+            '1' => '█',
+            '0' => ' ',
+            _ => c,
+        })
+        .collect()
 }
