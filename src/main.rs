@@ -1,4 +1,5 @@
-use std::io::Write;
+use core::panic;
+use std::io::{Bytes, Write};
 /*
 * Small tool to build QR codes from the inputted text.
 * Little bit of ANSI research to do
@@ -22,10 +23,6 @@ impl QRBody {
     fn add_text(&mut self, input_text: &str) {
         self.contents.push_str(input_text);
     }
-    //fn show_qr(&mut self) {
-    //    let blocks = ansi_translate(to_binary(&self.contents));
-    //    return blocks;
-    //}
     fn clear_screen(&mut self) {
         print!("{esc}[2J{esc}[1;1H", esc = 27 as char);
     }
@@ -42,14 +39,19 @@ fn main() {
     qr_translate_app.add_text(&new_input);
 
     let ip_length = new_input.len();
-    println!("{}", ip_length); //output to version function to get info for sizing
+    // println!("{}", ip_length); //output to version function to get info for sizing
 
     //QR code printer
-    let binary_info = "0100".to_owned() + &to_binary(&new_input); //has byte-mode indicator prepend
+    let binary_info = "01000000".to_owned() + &to_binary(&new_input); //has byte-mode indicator prepend plus some padding for a test
     let qr_info = ansi_translate(&binary_info);
+    let qr_string = qr_info.to_string();
+    let output_size = smallest_version(ip_length.try_into().unwrap());
+
     //TODO: Refactor to reduce mem footprint
     println!("{}", binary_info);
     println!("{}", qr_info);
+    println!("{:?}", output_size);
+    output_sizing(output_size, &qr_string)
 }
 
 fn get_string_input(prompt: &str) -> String {
@@ -86,12 +88,25 @@ fn error_correction() {
     //function to inplement M level error correction - to recover up to 15% of the data, just use a
     //reed solomon crate
 }
-fn smallest_version(string_length: i32) -> (i32, i32) {
+fn smallest_version(string_length: i32) -> (usize, usize) {
     //to determine the smallest possible version of the qr, min level 25x, max level ver40 177x
     //TODO: add match casees for other versions, only have ver 1 here, increment by 4
     let len = string_length;
     match len {
-        1..=15 => (25, 25),
+        1..=15 => (24, 24), //this should be 25 but is currently chopping bytes up
         _ => (0, 0),
+    }
+}
+fn output_sizing(dimensions: (usize, usize), content: &str) {
+    let (width, height) = dimensions;
+    // assert_eq!(content.len(), width * height, "Input must match grid size");
+
+    for row in 0..height {
+        for col in 0..width {
+            let index = row * width + col;
+            let value = content.chars().nth(index).unwrap();
+            print!("{}", value);
+        }
+        println!();
     }
 }
