@@ -1,4 +1,3 @@
-use core::panic;
 use std::io::{Bytes, Write};
 /*
 * Small tool to build QR codes from the inputted text.
@@ -42,7 +41,7 @@ fn main() {
     // println!("{}", ip_length); //output to version function to get info for sizing
 
     //QR code printer
-    let binary_info = "01000000".to_owned() + &to_binary(&new_input); //has byte-mode indicator prepend plus some padding for a test
+    let binary_info = "0100".to_owned() + &to_binary(&new_input); //has byte-mode indicator prepend
     let qr_info = ansi_translate(&binary_info);
     let qr_string = qr_info.to_string();
     let output_size = smallest_version(ip_length.try_into().unwrap());
@@ -80,6 +79,7 @@ fn ansi_translate(input: &str) -> String {
         .map(|c| match c {
             '1' => '█',
             '0' => ' ',
+            ' ' => 'x', //TODO: need to find better error outputs, better testing
             _ => c,
         })
         .collect()
@@ -104,7 +104,7 @@ fn output_sizing(dimensions: (usize, usize), content: &str) {
     for row in 0..height {
         for col in 0..width {
             let index = row * width + col;
-            let value = content.chars().nth(index).unwrap();
+            let value = content.chars().nth(index).unwrap_or('e');
             print!("{}", value);
         }
         println!();
