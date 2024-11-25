@@ -33,22 +33,17 @@ fn main() {
     qr_translate_app.add_text(&new_input);
 
     let ip_length = new_input.len();
-    // println!("{}", ip_length); //output to version function to get info for sizing
 
     //debug qr data code printer
     let binary_info = "0100".to_owned() + &to_binary(&new_input); //has byte-mode indicator prepend
     let qr_info = ansi_translate(&binary_info);
     let qr_string = qr_info.to_string();
-    let output_size = smallest_version(ip_length.try_into().unwrap());
-
-    //TODO: Refactor into methods to avoid all of the repeated variables.
-    println!("{}", binary_info);
+    println!("binary info output: {}", binary_info);
+    println!("string length, module output: {}, {}", ip_length, qr_string);
     println!("{}", qr_info);
-    println!("{:?}", output_size);
-    output_sizing(output_size, &qr_string);
 
-    // Create a QR code matrix for version 4
-    let qr_matrix = QRCodeMatrix::new(4);
+    // Create a QR code matrix for version 4 - TODO: pass the string length info to the size
+    let qr_matrix = QRCodeMatrix::new(4, &binary_info);
 
     // Render and print the matrix
     println!("{}", qr_matrix.render());
@@ -130,7 +125,7 @@ pub struct QRCodeMatrix {
 
 impl QRCodeMatrix {
     /// Create a new QR code matrix for a specific version (size)
-    pub fn new(version: usize) -> Self {
+    pub fn new(version: usize, data: &str) -> Self {
         // Calculate matrix size based on QR code version
         // QR Code size = (4 * version) + 17
         let size = 4 * version + 17;
@@ -139,11 +134,13 @@ impl QRCodeMatrix {
         let matrix = vec![vec![ModuleType::Empty; size]; size];
 
         let mut qr_matrix = QRCodeMatrix { size, matrix };
+        let data_modules = data;
 
         // Add functional patterns
         qr_matrix.add_position_detection_patterns();
         qr_matrix.add_timing_patterns();
         qr_matrix.add_dark_module(version);
+        qr_matrix.add_data_modules(data_modules);
 
         // If version > 1, add alignment patterns
         if version > 1 {
@@ -153,7 +150,21 @@ impl QRCodeMatrix {
         qr_matrix
     }
 
-    /// Add position detection patterns (corner squares)
+    /// main(usr input -> data argument in QRCodeMatrix::new) -> data_modules var -> arg for add_data_mod
+    fn add_data_modules(&mut self, data: &str) -> Result<Vec<ModuleType>, &'static str> {
+        //Takes a str - converts it to the data module rendered block
+        let output = data
+            .chars()
+            .map(|c| match c {
+                '0' => Ok(ModuleType::Empty),
+                '1' => Ok(ModuleType::Data),
+                _ => Err("Invalid binary character: must be '0' or '1'"),
+            })
+            .collect();
+        //TODO: Make this return correctly. Currently getting tripped up by types, wants to bring
+        //the output to the argument within new function, but isn't using render function
+        output
+    }
     fn add_position_detection_patterns(&mut self) {
         // Top-left
         self.add_position_detection_pattern(0, 0);
@@ -165,7 +176,7 @@ impl QRCodeMatrix {
         self.add_position_detection_pattern(self.size - 7, 0);
     }
 
-    /// Create a single position detection pattern
+    // Create a single position detection pattern
     fn add_position_detection_pattern(&mut self, start_row: usize, start_col: usize) {
         for i in 0..7 {
             for j in 0..7 {
@@ -184,11 +195,11 @@ impl QRCodeMatrix {
         }
     }
 
-    /// Add horizontal and vertical timing patterns
+    // horizontal and vertical timing patterns
     fn add_timing_patterns(&mut self) {
         let pattern_position = 6;
 
-        // Horizontal timing pattern
+        // Horizontal timing pattern -even numbers filled
         for col in 8..self.size - 8 {
             self.matrix[pattern_position][col] = if col % 2 == 0 {
                 ModuleType::Timing
@@ -197,7 +208,7 @@ impl QRCodeMatrix {
             };
         }
 
-        // Vertical timing pattern
+        // Vertical timing pattern - same again
         for row in 8..self.size - 8 {
             self.matrix[row][pattern_position] = if row % 2 == 0 {
                 ModuleType::Timing
@@ -207,7 +218,7 @@ impl QRCodeMatrix {
         }
     }
 
-    /// Add alignment patterns for versions > 1
+    // Add alignment patterns for versions > 1
     fn add_alignment_patterns(&mut self, version: usize) {
         // Alignment pattern locations based on QR code version
         let locations = self.get_alignment_pattern_locations(version);
@@ -217,7 +228,7 @@ impl QRCodeMatrix {
         }
     }
 
-    /// Create a single alignment pattern
+    // Create a single alignment pattern
     fn add_single_alignment_pattern(&mut self, center_row: usize, center_col: usize) {
         let start_row = center_row - 2;
         let start_col = center_col - 2;
@@ -238,7 +249,7 @@ impl QRCodeMatrix {
         }
     }
 
-    /// Determine alignment pattern locations based on QR code version
+    // Determine alignment pattern locations based on QR code version
     fn get_alignment_pattern_locations(&self, version: usize) -> Vec<(usize, usize)> {
         // This is a simplified version. Actual locations depend on the specific QR code version
         match version {
@@ -257,14 +268,14 @@ impl QRCodeMatrix {
         }
     }
 
-    /// Add the dark module (always at the same location for all versions)
+    // Add the dark module (always at the same location for all versions)
     fn add_dark_module(&mut self, version: usize) {
         let dark_module_row = 4 * version + 9;
         let dark_module_col = 8;
         self.matrix[dark_module_row][dark_module_col] = ModuleType::DarkModule;
     }
 
-    /// Render the matrix as a string of block characters
+    // Render the matrix as a string of block characters
     pub fn render(&self) -> String {
         let mut rendered = String::new();
 
