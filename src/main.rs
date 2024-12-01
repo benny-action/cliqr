@@ -4,33 +4,10 @@ use std::vec::Vec;
 * Small tool to build QR codes from the inputted text.
 *
 * */
-struct QRBody {
-    contents: String,
-}
-
-impl QRBody {
-    fn new(initial_text: &str) -> QRBody {
-        QRBody {
-            contents: initial_text.to_string(),
-            // finder_block,
-            // alignment_block,
-            // timing_pattern,
-        }
-    }
-    fn add_text(&mut self, input_text: &str) {
-        self.contents.push_str(input_text);
-    }
-    fn clear_screen(&mut self) {
-        print!("{esc}[2J{esc}[1;1H", esc = 27 as char);
-    }
-}
-
 fn main() {
-    let mut qr_translate_app = QRBody::new("");
-    qr_translate_app.clear_screen();
+    clear_screen();
     println!("CLIQR: text to QR in command line");
     let new_input = get_string_input("Enter text to become QR: ");
-    qr_translate_app.add_text(&new_input);
 
     let ip_length = new_input.len();
 
@@ -43,7 +20,7 @@ fn main() {
     println!("{}", qr_info);
 
     // Create a QR code matrix for version 4 - TODO: pass the string length info to the size
-    let qr_matrix = QRCodeMatrix::new(4, &binary_info);
+    let qr_matrix = QRCodeMatrix::new(4);
 
     // Render and print the matrix
     println!("{}", qr_matrix.render());
@@ -106,7 +83,11 @@ fn output_sizing(dimensions: (usize, usize), content: &str) {
     }
 }
 
-#[derive(Clone, Copy, Default)]
+fn clear_screen() {
+    print!("{esc}[2J{esc}[1;1H", esc = 27 as char);
+}
+
+#[derive(Clone, Copy, Default, Debug)]
 enum ModuleType {
     #[default]
     Empty,
@@ -114,7 +95,6 @@ enum ModuleType {
     Timing,
     Alignment,
     DarkModule,
-    Reserved,
     Data,
 }
 
@@ -125,7 +105,7 @@ pub struct QRCodeMatrix {
 
 impl QRCodeMatrix {
     /// Create a new QR code matrix for a specific version (size)
-    pub fn new(version: usize, data: &str) -> Self {
+    pub fn new(version: usize) -> Self {
         // Calculate matrix size based on QR code version
         // QR Code size = (4 * version) + 17
         let size = 4 * version + 17;
@@ -134,13 +114,12 @@ impl QRCodeMatrix {
         let matrix = vec![vec![ModuleType::Empty; size]; size];
 
         let mut qr_matrix = QRCodeMatrix { size, matrix };
-        let data_modules = data;
 
         // Add functional patterns
         qr_matrix.add_position_detection_patterns();
         qr_matrix.add_timing_patterns();
         qr_matrix.add_dark_module(version);
-        qr_matrix.add_data_modules(data_modules);
+        qr_matrix.add_data_modules();
 
         // If version > 1, add alignment patterns
         if version > 1 {
@@ -151,19 +130,27 @@ impl QRCodeMatrix {
     }
 
     /// main(usr input -> data argument in QRCodeMatrix::new) -> data_modules var -> arg for add_data_mod
-    fn add_data_modules(&mut self, data: &str) -> Result<Vec<ModuleType>, &'static str> {
-        //Takes a str - converts it to the data module rendered block
-        let output = data
-            .chars()
-            .map(|c| match c {
-                '0' => Ok(ModuleType::Empty),
-                '1' => Ok(ModuleType::Data),
-                _ => Err("Invalid binary character: must be '0' or '1'"),
-            })
-            .collect();
-        //TODO: Make this return correctly. Currently getting tripped up by types, wants to bring
-        //the output to the argument within new function, but isn't using render function
-        output
+    fn add_data_modules(&mut self, data: &str) -> Vec<ModuleType> {
+        //let output = data
+        //    //change the iteration here so that it will go through binary digits
+        //    //and spit out the enum variant for each
+        //    .chars(|c| match c {
+        //        '0' => Ok(ModuleType::Empty),
+        //        '1' => Ok(ModuleType::Data),
+        //        _ => Err("Invalid binary character: must be '0' or '1'"),
+        //    })
+        //    .collect();
+        //output
+        for i in 8.. {
+            for j in 8.. {
+                // Create the specific pattern with alternating black and white modules
+                for char in data {
+                    if char == "1" { /* return the block*/
+                    } else { /*same for 0*/
+                    }
+                }
+            }
+        }
     }
     fn add_position_detection_patterns(&mut self) {
         // Top-left
@@ -277,7 +264,7 @@ impl QRCodeMatrix {
 
     // Render the matrix as a string of block characters
     pub fn render(&self) -> String {
-        let mut rendered = String::new();
+        let mut rendered = String::new(); //here becomes string
 
         for row in &self.matrix {
             for &module in row {
@@ -287,7 +274,6 @@ impl QRCodeMatrix {
                     ModuleType::Timing => rendered.push('▓'),
                     ModuleType::Alignment => rendered.push('▒'),
                     ModuleType::DarkModule => rendered.push('▓'),
-                    ModuleType::Reserved => rendered.push('░'),
                     ModuleType::Data => rendered.push('·'),
                 }
             }
@@ -315,9 +301,92 @@ impl QRCodeMatrix {
                         | ModuleType::Timing
                         | ModuleType::Alignment
                         | ModuleType::DarkModule
-                        | ModuleType::Reserved
                 )
             })
             .count()
+    }
+}
+//TESTS
+
+#[cfg(test)]
+mod tests {
+    use super::*; // Import the parent module's types
+
+    #[test]
+    fn test_add_data_modules_valid_input() {
+        let mut instance = QRCodeMatrix::new(4, "01010"); // Replace with your actual struct initialization
+
+        // Test a mix of empty and data modules
+        let result = instance.add_data_modules("01010");
+        assert!(
+            result.is_ok(),
+            "Should successfully parse valid binary string"
+        );
+
+        let modules = result.unwrap();
+        assert_eq!(modules.len(), 5, "Should return 5 modules");
+    }
+
+    #[test]
+    fn test_add_data_modules_all_empty() {
+        let mut instance = QRCodeMatrix::new(4, "00000");
+
+        let result = instance.add_data_modules("00000");
+        assert!(
+            result.is_ok(),
+            "Should successfully parse all empty modules"
+        );
+
+        let modules = result.unwrap();
+        assert!(
+            modules.iter().all(|m| matches!(m, ModuleType::Empty)),
+            "All modules should be Empty"
+        );
+    }
+
+    #[test]
+    fn test_add_data_modules_all_data() {
+        let mut instance = QRCodeMatrix::new(4, "111111");
+
+        let result = instance.add_data_modules("11111");
+        assert!(result.is_ok(), "Should successfully parse all data modules");
+
+        let modules = result.unwrap();
+        assert!(
+            modules.iter().all(|m| matches!(m, ModuleType::Data)),
+            "All modules should be Data"
+        );
+    }
+
+    #[test]
+    fn test_add_data_modules_invalid_input() {
+        let mut instance = QRCodeMatrix::new(4, "012345");
+
+        // Test invalid characters
+        let result = instance.add_data_modules("012345");
+        assert!(
+            result.is_err(),
+            "Should return an error for invalid characters"
+        );
+
+        // Verify the specific error message
+        match result {
+            Err(msg) => assert_eq!(msg, "Invalid binary character: must be '0' or '1'"),
+            Ok(_) => panic!("Should have returned an error"),
+        }
+    }
+
+    #[test]
+    fn test_add_data_modules_empty_string() {
+        let mut instance = QRCodeMatrix::new(4, "");
+
+        let result = instance.add_data_modules("");
+        assert!(result.is_ok(), "Should handle empty string");
+
+        let modules = result.unwrap();
+        assert!(
+            modules.is_empty(),
+            "Should return an empty vector for empty input"
+        );
     }
 }
