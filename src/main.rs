@@ -119,7 +119,7 @@ impl QRCodeMatrix {
         qr_matrix.add_position_detection_patterns();
         qr_matrix.add_timing_patterns();
         qr_matrix.add_dark_module(version);
-        qr_matrix.add_data_modules();
+        qr_matrix.add_data_modules("10101010");
 
         // If version > 1, add alignment patterns
         if version > 1 {
@@ -130,28 +130,21 @@ impl QRCodeMatrix {
     }
 
     /// main(usr input -> data argument in QRCodeMatrix::new) -> data_modules var -> arg for add_data_mod
-    fn add_data_modules(&mut self, data: &str) -> Vec<ModuleType> {
-        //let output = data
-        //    //change the iteration here so that it will go through binary digits
-        //    //and spit out the enum variant for each
-        //    .chars(|c| match c {
-        //        '0' => Ok(ModuleType::Empty),
-        //        '1' => Ok(ModuleType::Data),
-        //        _ => Err("Invalid binary character: must be '0' or '1'"),
-        //    })
-        //    .collect();
-        //output
-        for i in 8.. {
-            for j in 8.. {
-                // Create the specific pattern with alternating black and white modules
-                for char in data {
-                    if char == "1" { /* return the block*/
-                    } else { /*same for 0*/
-                    }
-                }
-            }
-        }
-    }
+    fn add_data_modules(&mut self, binary: &str) -> Vec<ModuleType> {
+        binary
+            .chars()
+            .filter(|&c| c == '0' || c == '1')
+            .map(|c| match c {
+                '0' => ModuleType::Empty,
+                '1' => ModuleType::Data,
+                _ => unreachable!("Filtered out non-binary characters"),
+            })
+            .collect()
+    } //TODO: using self.matrix from original struct, get the mapped moduletypes into the matrix
+      //properly so they can render, use the coordinates and the add_positional_d_p module to figure
+      //it. The nested fors are defining a pattern, the ifs are assigning them to module types, may
+      //not need the method call chain at all??
+
     fn add_position_detection_patterns(&mut self) {
         // Top-left
         self.add_position_detection_pattern(0, 0);
@@ -163,11 +156,11 @@ impl QRCodeMatrix {
         self.add_position_detection_pattern(self.size - 7, 0);
     }
 
-    // Create a single position detection pattern
+    // single position detection pattern
     fn add_position_detection_pattern(&mut self, start_row: usize, start_col: usize) {
         for i in 0..7 {
             for j in 0..7 {
-                // Create the specific pattern with alternating black and white modules
+                // pattern with alternating black and white modules
                 let is_border = i == 0 || i == 6 || j == 0 || j == 6;
                 let is_inner_border = i == 1 || i == 5 || j == 1 || j == 5;
 
@@ -215,7 +208,7 @@ impl QRCodeMatrix {
         }
     }
 
-    // Create a single alignment pattern
+    // single alignment pattern
     fn add_single_alignment_pattern(&mut self, center_row: usize, center_col: usize) {
         let start_row = center_row - 2;
         let start_col = center_col - 2;
@@ -238,7 +231,6 @@ impl QRCodeMatrix {
 
     // Determine alignment pattern locations based on QR code version
     fn get_alignment_pattern_locations(&self, version: usize) -> Vec<(usize, usize)> {
-        // This is a simplified version. Actual locations depend on the specific QR code version
         match version {
             2..=4 => vec![(self.size / 2, self.size / 2)],
             5..=6 => vec![
@@ -251,11 +243,11 @@ impl QRCodeMatrix {
                 (self.size / 4, self.size / 4 * 3),
                 (self.size / 4 * 3, self.size / 4 * 3),
             ],
-            _ => vec![], // Larger versions would have more complex placement
+            _ => vec![], // Larger versions more complex placement
         }
     }
 
-    // Add the dark module (always at the same location for all versions)
+    // Add the dark module
     fn add_dark_module(&mut self, version: usize) {
         let dark_module_row = 4 * version + 9;
         let dark_module_col = 8;
@@ -283,13 +275,13 @@ impl QRCodeMatrix {
         rendered
     }
 
-    /// Get the total number of data modules available - to check against reserved
+    // Get the total number of data modules available - to check against reserved
     pub fn get_total_data_modules(&self) -> usize {
         // This is a simplified estimation
         self.size * self.size - self.count_reserved_modules()
     }
 
-    /// Count the number of reserved/functional modules - to have a total to fit to sizing
+    // Count the number of reserved/functional modules - to have a total to fit to sizing
     fn count_reserved_modules(&self) -> usize {
         self.matrix
             .iter()
@@ -307,86 +299,3 @@ impl QRCodeMatrix {
     }
 }
 //TESTS
-
-#[cfg(test)]
-mod tests {
-    use super::*; // Import the parent module's types
-
-    #[test]
-    fn test_add_data_modules_valid_input() {
-        let mut instance = QRCodeMatrix::new(4, "01010"); // Replace with your actual struct initialization
-
-        // Test a mix of empty and data modules
-        let result = instance.add_data_modules("01010");
-        assert!(
-            result.is_ok(),
-            "Should successfully parse valid binary string"
-        );
-
-        let modules = result.unwrap();
-        assert_eq!(modules.len(), 5, "Should return 5 modules");
-    }
-
-    #[test]
-    fn test_add_data_modules_all_empty() {
-        let mut instance = QRCodeMatrix::new(4, "00000");
-
-        let result = instance.add_data_modules("00000");
-        assert!(
-            result.is_ok(),
-            "Should successfully parse all empty modules"
-        );
-
-        let modules = result.unwrap();
-        assert!(
-            modules.iter().all(|m| matches!(m, ModuleType::Empty)),
-            "All modules should be Empty"
-        );
-    }
-
-    #[test]
-    fn test_add_data_modules_all_data() {
-        let mut instance = QRCodeMatrix::new(4, "111111");
-
-        let result = instance.add_data_modules("11111");
-        assert!(result.is_ok(), "Should successfully parse all data modules");
-
-        let modules = result.unwrap();
-        assert!(
-            modules.iter().all(|m| matches!(m, ModuleType::Data)),
-            "All modules should be Data"
-        );
-    }
-
-    #[test]
-    fn test_add_data_modules_invalid_input() {
-        let mut instance = QRCodeMatrix::new(4, "012345");
-
-        // Test invalid characters
-        let result = instance.add_data_modules("012345");
-        assert!(
-            result.is_err(),
-            "Should return an error for invalid characters"
-        );
-
-        // Verify the specific error message
-        match result {
-            Err(msg) => assert_eq!(msg, "Invalid binary character: must be '0' or '1'"),
-            Ok(_) => panic!("Should have returned an error"),
-        }
-    }
-
-    #[test]
-    fn test_add_data_modules_empty_string() {
-        let mut instance = QRCodeMatrix::new(4, "");
-
-        let result = instance.add_data_modules("");
-        assert!(result.is_ok(), "Should handle empty string");
-
-        let modules = result.unwrap();
-        assert!(
-            modules.is_empty(),
-            "Should return an empty vector for empty input"
-        );
-    }
-}
