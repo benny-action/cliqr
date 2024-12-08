@@ -120,6 +120,7 @@ impl QRCodeMatrix {
         qr_matrix.add_timing_patterns();
         qr_matrix.add_dark_module(version);
         qr_matrix.add_data_modules("10101010");
+        qr_matrix.data_module_positioning();
 
         // If version > 1, add alignment patterns
         if version > 1 {
@@ -140,11 +141,21 @@ impl QRCodeMatrix {
                 _ => unreachable!("Filtered out non-binary characters"),
             })
             .collect()
-    } //TODO: using self.matrix from original struct, get the mapped moduletypes into the matrix
-      //properly so they can render, use the coordinates and the add_positional_d_p module to figure
-      //it. The nested fors are defining a pattern, the ifs are assigning them to module types, may
-      //not need the method call chain at all??
+    }
 
+    fn data_module_positioning(&mut self) {
+        let mut pattern_position = 0;
+        for _t in 8..self.size - 8 {
+            for row in 8..self.size - 8 {
+                self.matrix[row][pattern_position] = if row % 2 == 0 {
+                    ModuleType::Data
+                } else {
+                    ModuleType::Empty
+                };
+            }
+            pattern_position = 1;
+        }
+    }
     fn add_position_detection_patterns(&mut self) {
         // Top-left
         self.add_position_detection_pattern(0, 0);
