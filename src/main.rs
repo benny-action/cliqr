@@ -11,16 +11,18 @@ fn main() {
 
     let ip_length = new_input.len();
 
-    //debug qr data code printer
-    let binary_info = "0100".to_owned() + &to_binary(&new_input); //has byte-mode indicator prepend
-    let qr_info = ansi_translate(&binary_info);
-    let qr_string = qr_info.to_string();
-    println!("binary info output: {}", binary_info);
-    println!("string length, module output: {}, {}", ip_length, qr_string);
-    println!("{}", qr_info);
+    //debug qr data code printer has byte-mode indicator prepend
+    let binary_info = "0100".to_owned() + &to_binary(&new_input);
+    //let qr_info = ansi_translate(&binary_info);
+    //let qr_string = qr_info.to_string();
+    //println!("binary info output: {}", binary_info);
+    //println!("string length, module output: {}, {}", ip_length, qr_string);
+    //println!("{}", qr_info);
 
+    println!("______________________________________________________________________________");
+    println!("Test for data Vec:");
     // Create a QR code matrix for version 4 - TODO: pass the string length info to the size
-    let qr_matrix = QRCodeMatrix::new(4);
+    let qr_matrix = QRCodeMatrix::new(4, &binary_info);
 
     // Render and print the matrix
     println!("{}", qr_matrix.render());
@@ -105,7 +107,7 @@ pub struct QRCodeMatrix {
 
 impl QRCodeMatrix {
     /// Create a new QR code matrix for a specific version (size)
-    pub fn new(version: usize) -> Self {
+    pub fn new(version: usize, info: &str) -> Self {
         // Calculate matrix size based on QR code version
         // QR Code size = (4 * version) + 17
         let size = 4 * version + 17;
@@ -116,21 +118,21 @@ impl QRCodeMatrix {
         let mut qr_matrix = QRCodeMatrix { size, matrix };
 
         // Add functional patterns
+        let data_vec = qr_matrix.add_data_modules(info);
+        qr_matrix.data_module_positioning(data_vec);
         qr_matrix.add_position_detection_patterns();
         qr_matrix.add_timing_patterns();
         qr_matrix.add_dark_module(version);
-        qr_matrix.add_data_modules("10101010");
-        qr_matrix.data_module_positioning();
 
         // If version > 1, add alignment patterns
         if version > 1 {
             qr_matrix.add_alignment_patterns(version);
         }
-
+        //data debug printing
+        //println!("{:?}", data_vec);
         qr_matrix
     }
 
-    /// main(usr input -> data argument in QRCodeMatrix::new) -> data_modules var -> arg for add_data_mod
     fn add_data_modules(&mut self, binary: &str) -> Vec<ModuleType> {
         binary
             .chars()
@@ -143,17 +145,18 @@ impl QRCodeMatrix {
             .collect()
     }
 
-    fn data_module_positioning(&mut self) {
+    fn data_module_positioning(&mut self, vectorised_data: Vec<ModuleType>) {
+        //TODO: add masking in order to not place under the functional parts.
         let mut pattern_position = 0;
-        for _t in 8..self.size - 8 {
-            for row in 8..self.size - 8 {
-                self.matrix[row][pattern_position] = if row % 2 == 0 {
+        for _t in 0..self.size {
+            for row in 0..self.size {
+                self.matrix[row][pattern_position] = if _t & row % 2 == 0 {
                     ModuleType::Data
                 } else {
                     ModuleType::Empty
                 };
             }
-            pattern_position = 1;
+            pattern_position += 1;
         }
     }
     fn add_position_detection_patterns(&mut self) {
