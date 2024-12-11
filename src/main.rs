@@ -10,6 +10,7 @@ fn main() {
     let new_input = get_string_input("Enter text to become QR: ");
 
     let ip_length = new_input.len();
+    println!("{}", ip_length);
 
     //debug qr data code printer has byte-mode indicator prepend
     let binary_info = "0100".to_owned() + &to_binary(&new_input);
@@ -129,7 +130,7 @@ impl QRCodeMatrix {
             qr_matrix.add_alignment_patterns(version);
         }
         //data debug printing
-        //println!("{:?}", data_vec);
+        //println!("{:?}", &data_vec);
         qr_matrix
     }
 
@@ -147,17 +148,28 @@ impl QRCodeMatrix {
 
     fn data_module_positioning(&mut self, vectorised_data: Vec<ModuleType>) {
         //TODO: add masking in order to not place under the functional parts.
+        //TODO: place vector of data in the matrix of moduletypes.
         let mut pattern_position = 0;
-        for _t in 0..self.size {
+        for col in 0..self.size {
             for row in 0..self.size {
-                self.matrix[row][pattern_position] = if _t & row % 2 == 0 {
-                    ModuleType::Data
-                } else {
-                    ModuleType::Empty
-                };
+                for (index, state) in vectorised_data.iter().enumerate() {
+                    if let ModuleType::Data = state {
+                        self.matrix[col][index] = ModuleType::Data;
+                    }
+                }
             }
-            pattern_position += 1;
         }
+        // for col in 0..self.size {
+        // for row in 0..self.size {
+        // self.matrix[row][pattern_position] = if col & row % 2 == 1 {
+        // ModuleType::Data
+        // } else {
+        // ModuleType::Empty
+        // };
+        // }
+        // pattern_position += 1;
+        // }
+        //
     }
     fn add_position_detection_patterns(&mut self) {
         // Top-left
@@ -280,7 +292,7 @@ impl QRCodeMatrix {
                     ModuleType::Timing => rendered.push('▓'),
                     ModuleType::Alignment => rendered.push('▒'),
                     ModuleType::DarkModule => rendered.push('▓'),
-                    ModuleType::Data => rendered.push('·'),
+                    ModuleType::Data => rendered.push('█'),
                 }
             }
             rendered.push('\n');
