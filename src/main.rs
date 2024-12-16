@@ -1,7 +1,7 @@
 use std::io::Write;
 use std::vec::Vec;
 /*
-* Small tool to build QR codes from the inputted text.
+* Build QR codes from text.
 *
 * */
 fn main() {
@@ -10,18 +10,12 @@ fn main() {
     let new_input = get_string_input("Enter text to become QR: ");
 
     let ip_length = new_input.len();
-    println!("{}", ip_length);
+    println!("debug input length: {}", ip_length);
 
-    //debug qr data code printer has byte-mode indicator prepend
-    let binary_info = "0100".to_owned() + &to_binary(&new_input);
-    //let qr_info = ansi_translate(&binary_info);
-    //let qr_string = qr_info.to_string();
-    //println!("binary info output: {}", binary_info);
-    //println!("string length, module output: {}, {}", ip_length, qr_string);
-    //println!("{}", qr_info);
+    // Debug qr data code printer may need byte-mode indicator prepend
+    let binary_info = to_binary(&new_input);
 
     println!("______________________________________________________________________________");
-    println!("Test for data Vec:");
     // Create a QR code matrix for version 4 - TODO: pass the string length info to the size
     let qr_matrix = QRCodeMatrix::new(4, &binary_info);
 
@@ -52,39 +46,6 @@ fn to_binary(string_to_change: &str) -> String {
     }
     return string_in_binary;
 }
-fn ansi_translate(input: &str) -> String {
-    input
-        .chars()
-        .map(|c| match c {
-            '1' => '█',
-            '0' => ' ',
-            ' ' => 'x', //this is to stop it crashing when spaces are in the input?
-            _ => c,
-        })
-        .collect()
-}
-fn smallest_version(string_length: i32) -> (usize, usize) {
-    //to determine the smallest possible version of the qr, min level 25x, max level ver40 177x
-    //TODO: add match casees for other versions, only have ver 1 here, increment by 4
-    let len = string_length;
-    match len {
-        1..=15 => (24, 24), //this should be 25 but is currently chopping bytes up
-        _ => (0, 0),
-    }
-}
-fn output_sizing(dimensions: (usize, usize), content: &str) {
-    let (width, height) = dimensions;
-    // assert_eq!(content.len(), width * height, "Input must match grid size");
-
-    for row in 0..height {
-        for col in 0..width {
-            let index = row * width + col;
-            let value = content.chars().nth(index).unwrap_or('e');
-            print!("{}", value);
-        }
-        println!();
-    }
-}
 
 fn clear_screen() {
     print!("{esc}[2J{esc}[1;1H", esc = 27 as char);
@@ -107,13 +68,13 @@ pub struct QRCodeMatrix {
 }
 
 impl QRCodeMatrix {
-    /// Create a new QR code matrix for a specific version (size)
+    // Create a new QR code matrix for a specific version (size)
     pub fn new(version: usize, info: &str) -> Self {
         // Calculate matrix size based on QR code version
         // QR Code size = (4 * version) + 17
         let size = 4 * version + 17;
 
-        // Initialize matrix with empty modules
+        // Init matrix with empty modules
         let matrix = vec![vec![ModuleType::Empty; size]; size];
 
         let mut qr_matrix = QRCodeMatrix { size, matrix };
@@ -148,28 +109,20 @@ impl QRCodeMatrix {
 
     fn data_module_positioning(&mut self, vectorised_data: Vec<ModuleType>) {
         //TODO: add masking in order to not place under the functional parts.
-        //TODO: place vector of data in the matrix of moduletypes.
-        let mut pattern_position = 0;
-        for col in 0..self.size {
-            for row in 0..self.size {
-                for (index, state) in vectorised_data.iter().enumerate() {
-                    if let ModuleType::Data = state {
-                        self.matrix[col][index] = ModuleType::Data;
-                    }
-                }
+        //TODO: fix out of bounds error - only printing to inner vec, 32 bits and under type thing
+        let row = 0;
+        let mut row_tick = 0;
+        for (index, state) in vectorised_data.iter().enumerate() {
+            if let ModuleType::Data = state {
+                self.matrix[row][index + row_tick] = ModuleType::Data;
+            } else {
+                self.matrix[row][index + row_tick] = ModuleType::Empty;
+            }
+            if index % (8 * 4) == 0 {
+                // TODO: just hardcoded 4 for current size, make flexible
+                row_tick += 1
             }
         }
-        // for col in 0..self.size {
-        // for row in 0..self.size {
-        // self.matrix[row][pattern_position] = if col & row % 2 == 1 {
-        // ModuleType::Data
-        // } else {
-        // ModuleType::Empty
-        // };
-        // }
-        // pattern_position += 1;
-        // }
-        //
     }
     fn add_position_detection_patterns(&mut self) {
         // Top-left
