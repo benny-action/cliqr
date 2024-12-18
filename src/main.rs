@@ -110,17 +110,24 @@ impl QRCodeMatrix {
     fn data_module_positioning(&mut self, vectorised_data: Vec<ModuleType>) {
         //TODO: add masking in order to not place under the functional parts.
         //TODO: fix out of bounds error - only printing to inner vec, 32 bits and under type thing
-        let row = 0;
-        let mut row_tick = 0;
+        let mut row = 0;
+        let mut col = 0;
         for (index, state) in vectorised_data.iter().enumerate() {
             if let ModuleType::Data = state {
-                self.matrix[row][index + row_tick] = ModuleType::Data;
+                self.matrix[row][col] = ModuleType::Data;
             } else {
-                self.matrix[row][index + row_tick] = ModuleType::Empty;
+                self.matrix[row][col] = ModuleType::Empty;
             }
+            col += 1;
+
             if index % (8 * 4) == 0 {
                 // TODO: just hardcoded 4 for current size, make flexible
-                row_tick += 1
+                row += 1
+            }
+
+            if index % (8 * 4) == 0 {
+                // TODO: just hardcoded 4 for current size, make flexible
+                col -= col
             }
         }
     }
